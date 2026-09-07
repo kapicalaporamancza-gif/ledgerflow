@@ -1,0 +1,1 @@
+"""Provider layer (AI / Mail / OCR). Swappable backends behind a thin ABC."""

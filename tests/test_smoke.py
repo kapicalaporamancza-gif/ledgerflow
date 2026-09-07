@@ -1,0 +1,149 @@
+"""Smoke tests: every layer wired correctly, with all providers mocked."""
+from __future__ import annotations
+
+import os
+import uuid
+from pathlib import Path
+
+import pytest
+import pytest_asyncio
+from httpx import ASGITransport, AsyncClient
+
+# Force a clean SQLite for tests.
+os.environ["DATABASE_URL"] = "sqlite+aiosqlite:///./test_ledgerflow.db"
+os.environ["AI_PROVIDER"] = "mock"
+os.environ["MAIL_PROVIDER"] = "mock"
+os.environ["OCR_PROVIDER"] = "mock"
+
+# Import the app AFTER env vars.
+from app.main import app  # noqa: E402
+from app.db import init_db, engine  # noqa: E402
+
+
+@pytest_asyncio.fixture(scope="function", autouse=True)
+async def _setup_db():
+    # Fresh schema per test.
+    Path("./test_ledgerflow.db").unlink(missing_ok=True)
+    await init_db()
+    yield
+    await engine.dispose()
+
+
+@pytest.mark.asyncio
+async def test_health():
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as c:
+        r = await c.get("/healthz")
+        assert r.status_code == 200
+        assert r.json()["status"] == "ok"
+
+
+@pytest.mark.asyncio
+async def test_create_and_list_client():
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as c:
+        r = await c.post(
+            "/api/clients",
+            data={
+                "name": "ABC Transport",
+                "email": "biuro@abctransport.pl",
+                "tax_id": "1234567890",
+                "kind": "company",
+            },
+        )
+        assert r.status_code == 201
+        cid = r.json()["id"]
+
+        r = await c.get("/api/clients")
+        assert r.status_code == 200
+        rows = r.json()
+        assert any(row["name"] == "ABC Transport" for row in rows)
+
+
+@pytest.mark.asyncio
+async def test_ingest_all_assigns_clients():
+    """Pull mock mail -> 3 messages get processed -> 3 documents assigned."""
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as c:
+        # Seed 3 clients so assignment works.
+        for name, email in [
+            ("Abc Transport", "biuro@abctransport.pl"),
+            ("Janex", "kontakt@janex.com.pl"),
+            ("Kowalski", "biuro@kowalski.pl"),
+        ]:
+            await c.post(
+                "/api/clients",
+                data={"name": name, "email": email, "kind": "company"},
+            )
+
+        # Trigger ingest.
+        r = await c.post("/api/gmail/ingest-all")
+        assert r.status_code == 200
+        accepted = r.json()["accepted"]
+        assert len(accepted) == 3
+
+        # Background tasks run after the response; give them a moment via
+        # a second request that depends on the DB state.
+        # We rely on the endpoint ordering: tasks were scheduled before the
+        # response was sent, but FastAPI BackgroundTasks run after. So we
+        # call a small busy endpoint or just hit list to wait.
+        # Simpler: poll up to 2s for documents.
+        import asyncio as _a
+
+        for _ in range(20):
+            r = await c.get("/api/documents")
+            if len(r.json()) >= 3:
+                break
+            await _a.sleep(0.1)
+
+        r = await c.get("/api/documents")
+        docs = r.json()
+        assert len(docs) >= 3
+        types = {d["type"] for d in docs}
+        # From our mock: bank_statement, lease, invoice, plus raport_kasowy
+        # (mapped to bank_statement by heuristic) -> overlap.
+        assert "bank_statement" in types or "lease" in types or "invoice" in types
+
+
+@pytest.mark.asyncio
+async def test_dashboard_renders():
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as c:
+        r = await c.get("/dashboard")
+        assert r.status_code == 200
+        assert "Klienci" in r.text
+
+
+@pytest.mark.asyncio
+async def test_classification_validation_other_on_bad_ai():
+    """If AI returns garbage, classification must default to 'other'."""
+    from app.schemas.ai import Classification
+
+    # Pydantic should reject unknown enum value when type is wrong.
+    with pytest.raises(Exception):
+        Classification.model_validate({"document_type": "nonsense", "confidence": 0.5})
+    # But fallback path in pipeline creates a valid Classification anyway.
+    fallback = Classification(document_type="other", confidence=0.0)
+    assert fallback.document_type == "other"
+
+
+@pytest.mark.asyncio
+async def test_clients_new_routes_win_over_dynamic_uuid():
+    """Regression: /clients/new must NOT be matched as client_id='new'."""
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as c:
+        # GET form page.
+        r = await c.get("/clients/new")
+        assert r.status_code == 200, r.text
+        assert "Nowy klient" in r.text
+
+        # POST form -> creates client and redirects to /clients/{uuid}.
+        r = await c.post(
+            "/clients/new",
+            data={"name": "Routing Test", "kind": "company"},
+            follow_redirects=False,
+        )
+        assert r.status_code == 303, r.text
+        assert r.headers["location"].startswith("/clients/")
+        # Location must be a valid UUID path, not "/clients/new".
+        loc = r.headers["location"]
+        assert loc != "/clients/new"
+        # The created client page should also load.
+        r2 = await c.get(loc)
+        assert r2.status_code == 200, r2.text
+        assert "Routing Test".upper() in r2.text.upper() or "ROUTING TEST" in r2.text

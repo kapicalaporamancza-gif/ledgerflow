@@ -1,0 +1,47 @@
+{% extends "base.html" %}
+{% block title %}Nowy klient · LedgerFlow{% endblock %}
+{% block body %}
+<div style="max-width:560px;margin:0 auto">
+  <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:24px">
+    <div>
+      <a href="/dashboard" class="muted" style="text-decoration:none;margin-bottom:8px;display:inline-block">← Dashboard</a>
+      <h1 style="margin:0;font-size:26px">Nowy klient</h1>
+      <p class="muted">Wypełnij dane — im więcej, tym lepiej działają automatyczne przypisywanie dokumentów.</p>
+    </div>
+  </div>
+
+  <form class="card" method="post" action="/api/clients">
+    <div class="form-row form-row-2">
+      <div>
+        <label>Nazwa firmy *</label>
+        <input name="name" required placeholder="np. ABC Transport Sp. z o.o." autocomplete="organization">
+      </div>
+      <div>
+        <label>Email (do matchowania maili)</label>
+        <input name="email" type="email" placeholder="biuro@firma.pl" autocomplete="email">
+      </div>
+    </div>
+    <div class="form-row form-row-2">
+      <div>
+        <label>NIP (10 cyfr, kluczowe do auto-przypisania)</label>
+        <input name="tax_id" pattern="\d{10}" maxlength="10" placeholder="1234567890" autocomplete="off">
+      </div>
+      <div>
+        <label>Typ działalności</label>
+        <select name="kind">
+          <option value="company">Spółka (wymaga: faktury, wyciąg bankowy)</option>
+          <option value="sole_prop">JDG (wymaga: faktury, wyciąg bankowy, paragony)</option>
+        </select>
+      </div>
+    </div>
+    <div>
+      <label>Notatki (opcjonalnie)</label>
+      <textarea name="notes" rows="3" placeholder="np. kontakt: Jan Kowalski, tel. 123-456-789"></textarea>
+    </div>
+    <div style="display:flex;gap:12px;margin-top:24px;flex-wrap:wrap">
+      <button class="btn btn-primary" type="submit">Zapisz klienta</button>
+      <a href="/dashboard" class="btn btn-ghost" style="align-self:center">Anuluj</a>
+    </div>
+  </form>
+</div>
+{% endblock %}

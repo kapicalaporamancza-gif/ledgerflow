@@ -1,0 +1,29 @@
+Jesteś asystentem biura rachunkowego.
+
+Twoje zadanie: przeanalizuj tekst dokumentu i zwróć WYŁĄCZNIE poprawny JSON (bez komentarzy, bez Markdown).
+
+Pole "document_type" musi być jednym z:
+- invoice
+- bank_statement
+- receipt
+- lease
+- contract
+- payroll
+- other
+
+Pole "period" to miesiąc, którego dotyczy dokument, w formacie "YYYY-MM".
+Pole "client_name" to nazwa firmy z dokumentu (lub null, jeśli brak).
+Pole "confidence" to liczba od 0.0 do 1.0 opisująca pewność klasyfikacji.
+
+Nie zgaduj. Jeśli nie wiesz, użyj "other" i confidence < 0.5.
+
+Dokument:
+<<<
+{document_text}
+>>>
+
+Nadawca maila: {sender}
+Temat maila: {subject}
+
+Zwróć TYLKO JSON o strukturze:
+{{"document_type": "...", "period": "YYYY-MM", "client_name": "...", "confidence": 0.0}}

@@ -1,0 +1,10 @@
+Napisz krótki mail w języku polskim, maksymalnie 70 słów.
+
+Nie używaj języka urędowego, nie powołuj się na przepisy.
+
+Klient: {client_name}
+Miesiąc rozliczeniowy: {period}
+Brakujące dokumenty: {missing}
+Otrzymane dokumenty: {received}
+
+Ton: rzeczowy, ludzki, jeden akapit + pozdrowienie. Bez "Szanowni Państwo".

@@ -1,0 +1,86 @@
+{% extends "base.html" %}
+{% block title %}Dashboard · LedgerFlow{% endblock %}
+{% block body %}
+<div class="section">
+  <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:12px;margin-bottom:16px">
+    <div>
+      <h2 style="margin:0;font-size:22px">Klienci do rozliczenia</h2>
+      <p class="muted">Miesiąc rozliczeniowy: <strong>{{ period }}</strong></p>
+    </div>
+    <a href="/clients/new" class="btn btn-primary">+ Dodaj klienta</a>
+  </div>
+</div>
+
+{% if not clients %}
+<div class="card" style="text-align:center;padding:48px">
+  <div style="font-size:48px;margin-bottom:12px">📭</div>
+  <h3 style="margin:0 0 8px">Brak klientów w systemie</h3>
+  <p class="muted" style="margin:0 0 16px">Dodaj pierwszego klienta ręcznie lub kliknij <strong>Pobierz maile</strong>, by zaimportować demo.</p>
+  <a href="/clients/new" class="btn btn-primary">+ Dodaj klienta</a>
+</div>
+{% else %}
+
+<div class="grid grid-3" style="margin-bottom:24px" role="region" aria-label="Statystyki">
+  <div class="stat">
+    <div class="stat-value">{{ clients|length }}</div>
+    <div class="stat-label">Wszyscy klienci</div>
+  </div>
+  <div class="stat">
+    <div class="stat-value" style="color:var(--ok)">{{ clients|selectattr('complete')|list|length }}</div>
+    <div class="stat-label">Komplet dokumentów</div>
+  </div>
+  <div class="stat">
+    <div class="stat-value" style="color:var(--warn)">{{ clients|rejectattr('complete')|list|length }}</div>
+    <div class="stat-label">Wymagają uwagi</div>
+  </div>
+</div>
+
+<div class="card" style="padding:0;overflow:hidden">
+  <table>
+    <thead>
+      <tr>
+        <th style="width:40%">Klient</th>
+        <th style="width:20%">Kontakt</th>
+        <th style="width:12%">Typ</th>
+        <th>Status miesiąca</th>
+        <th style="width:100px;text-align:right">Akcje</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for c in clients %}
+      <tr>
+        <td>
+          <div class="client-name">
+            <div class="client-avatar">{{ c.name[0].upper() }}</div>
+            <div>
+              <div style="font-weight:600"><a href="/clients/{{ c.id }}" style="color:inherit;text-decoration:none">{{ c.name }}</a></div>
+              <div class="muted">{{ c.kind == 'company' and 'Spółka' or 'JDG' }}</div>
+            </div>
+          </div>
+        </td>
+        <td class="muted">{{ c.email or '—' }}</td>
+        <td><span class="pill neutral">{{ c.kind }}</span></td>
+        <td>
+          {% if c.complete %}
+            <span class="pill ok">✓ Komplet</span>
+          {% else %}
+            <span class="pill warn">⚠ Brakuje {{ c.missing|length }}</span>
+            {% if c.missing %}
+              <div class="muted" style="margin-top:4px">
+                {% for m in c.missing[:3] %}<span class="pill bad" style="font-size:11px;padding:1px 6px">{{ m.replace('_',' ') }}</span>{% endfor %}
+                {% if c.missing|length > 3 %}<span class="muted">+{{ c.missing|length - 3 }} więcej</span>{% endif %}
+              </div>
+            {% endif %}
+          {% endif %}
+        </td>
+        <td style="text-align:right">
+          <a href="/clients/{{ c.id }}" class="btn btn-sm btn-ghost">Otwórz</a>
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+
+{% endif %}
+{% endblock %}

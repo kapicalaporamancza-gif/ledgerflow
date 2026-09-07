@@ -1,0 +1,36 @@
+# Web framework
+fastapi==0.115.5
+uvicorn[standard]==0.32.1
+
+# DB / ORM
+sqlalchemy==2.0.36
+psycopg2-binary==2.9.10   # for production Postgres
+aiosqlite==0.20.0          # for dev / MVP (async SQLite)
+greenlet==3.1.1            # SQLAlchemy async needs greenlet on 3.13+
+
+# Validation
+pydantic==2.10.3
+pydantic-settings==2.6.1
+
+# Templating (HTMX UI)
+jinja2==3.1.4
+python-multipart==0.0.19
+
+# PDF / OCR (real providers; mocked by default)
+pdfplumber==0.11.4
+pytesseract==0.3.13
+Pillow==11.0.0
+
+# HTTP clients (for provider implementations)
+httpx==0.28.1
+
+# Email parsing (real Gmail integration)
+google-auth==2.37.0
+google-auth-oauthlib==1.2.1
+google-api-python-client==2.160.0
+
+# OpenAI (real AI integration)
+openai==1.58.1
+
+# Utils
+python-dateutil==2.9.0.post0
