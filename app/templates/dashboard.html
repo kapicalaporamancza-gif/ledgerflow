@@ -1,80 +1,161 @@
-{% extends "base.html" %}
-{% block title %}Dashboard · LedgerFlow{% endblock %}
+{% extends "base.html" %} {% block title %}Dashboard · LedgerFlow{% endblock %}
 {% block body %}
-<div class="section">
-  <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:12px;margin-bottom:16px">
-    <div>
-      <h2 style="margin:0;font-size:22px">Klienci do rozliczenia</h2>
-      <p class="muted">Miesiąc rozliczeniowy: <strong>{{ period }}</strong></p>
-    </div>
-    <a href="/clients/new" class="btn btn-primary">+ Dodaj klienta</a>
-  </div>
+
+<!-- Nagłówek Dashboardu (Wyśrodkowany i uproszczony) -->
+<div class="mb-10 text-center max-w-2xl mx-auto mt-4">
+  <h1 class="text-3xl font-bold mb-3" style="color: var(--accent)">
+    LedgerFlow Dashboard
+  </h1>
+  <p class="text-lg muted">
+    Twoje centrum zarządzania dokumentami księgowymi. Śledź postęp, zarządzaj
+    klientami i zapewnij kompletność dokumentacji.
+  </p>
 </div>
 
 {% if not clients %}
-<div class="card" style="text-align:center;padding:48px">
-  <div style="font-size:48px;margin-bottom:12px">📭</div>
-  <h3 style="margin:0 0 8px">Brak klientów w systemie</h3>
-  <p class="muted" style="margin:0 0 16px">Dodaj pierwszego klienta ręcznie lub kliknij <strong>Pobierz maile</strong>, by zaimportować demo.</p>
-  <a href="/clients/new" class="btn btn-primary">+ Dodaj klienta</a>
+<!-- Pusty stan (Zero State) -->
+<div class="card text-center py-12 max-w-2xl mx-auto">
+  <div class="text-5xl mb-4">📭</div>
+  <h2 class="text-2xl font-bold mb-2">Rozpocznij pracę z LedgerFlow</h2>
+  <p class="text-lg muted mb-8">
+    Nie masz jeszcze żadnych klientów w systemie. Dodaj pierwszego klienta, aby
+    rozpocząć automatyzację.
+  </p>
+  <a href="/clients/new" class="btn btn-primary px-6 py-3">
+    + Dodaj pierwszego klienta
+  </a>
 </div>
 {% else %}
 
-<div class="grid grid-3" style="margin-bottom:24px" role="region" aria-label="Statystyki">
-  <div class="stat">
-    <div class="stat-value">{{ clients|length }}</div>
-    <div class="stat-label">Wszyscy klienci</div>
+<!-- Statystyki - Czyste tło bez brzydkich gradientów -->
+<div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+  <div
+    class="card text-center flex flex-col items-center justify-center p-6 m-0"
+  >
+    <div class="text-4xl font-bold mb-2" style="color: var(--accent)">
+      {{ clients|length }}
+    </div>
+    <div class="text-xs muted uppercase font-bold tracking-wide">
+      Liczba klientów
+    </div>
   </div>
-  <div class="stat">
-    <div class="stat-value" style="color:var(--ok)">{{ clients|selectattr('complete')|list|length }}</div>
-    <div class="stat-label">Komplet dokumentów</div>
+
+  <div
+    class="card text-center flex flex-col items-center justify-center p-6 m-0"
+  >
+    <div class="text-4xl font-bold mb-2" style="color: var(--ok)">
+      {{ clients|selectattr('complete')|list|length }}
+    </div>
+    <div class="text-xs muted uppercase font-bold tracking-wide">
+      Komplet dokumentów
+    </div>
   </div>
-  <div class="stat">
-    <div class="stat-value" style="color:var(--warn)">{{ clients|rejectattr('complete')|list|length }}</div>
-    <div class="stat-label">Wymagają uwagi</div>
+
+  <div
+    class="card text-center flex flex-col items-center justify-center p-6 m-0"
+  >
+    <div class="text-4xl font-bold mb-2" style="color: var(--warn)">
+      {{ clients|rejectattr('complete')|list|length }}
+    </div>
+    <div class="text-xs muted uppercase font-bold tracking-wide">
+      Wymagają uwagi
+    </div>
+  </div>
+
+  <div
+    class="card text-center flex flex-col items-center justify-center p-6 m-0"
+  >
+    <div class="text-4xl font-bold mb-2 muted">
+      {{ (clients|selectattr('complete')|list|length +
+      clients|rejectattr('complete')|list|length) }}
+    </div>
+    <div class="text-xs muted uppercase font-bold tracking-wide">
+      Łącznie sprawdzonych
+    </div>
   </div>
 </div>
 
-<div class="card" style="padding:0;overflow:hidden">
-  <table>
+<!-- Tabela klientów -->
+<div class="card p-0 overflow-hidden">
+  <table class="w-full text-left border-collapse">
     <thead>
       <tr>
-        <th style="width:40%">Klient</th>
-        <th style="width:20%">Kontakt</th>
-        <th style="width:12%">Typ</th>
-        <th>Status miesiąca</th>
-        <th style="width:100px;text-align:right">Akcje</th>
+        <th
+          class="p-4 text-xs muted uppercase tracking-wide border-b border-[var(--border)]"
+        >
+          Klient
+        </th>
+        <th
+          class="p-4 text-xs muted uppercase tracking-wide border-b border-[var(--border)]"
+        >
+          Kontakt
+        </th>
+        <th
+          class="p-4 text-xs muted uppercase tracking-wide border-b border-[var(--border)]"
+        >
+          Typ
+        </th>
+        <th
+          class="p-4 text-xs muted uppercase tracking-wide border-b border-[var(--border)]"
+        >
+          Status
+        </th>
+        <th
+          class="p-4 text-xs muted uppercase tracking-wide border-b border-[var(--border)] text-right"
+        >
+          Akcje
+        </th>
       </tr>
     </thead>
     <tbody>
       {% for c in clients %}
-      <tr>
-        <td>
-          <div class="client-name">
-            <div class="client-avatar">{{ c.name[0].upper() }}</div>
+      <tr class="transition-colors hover:bg-[var(--border)]">
+        <td class="p-4 border-b border-[var(--border)]">
+          <div class="flex items-center gap-3">
+            <div
+              class="w-10 h-10 rounded-full flex items-center justify-center font-bold text-white"
+              style="background: var(--accent)"
+            >
+              {{ c.name[0].upper() }}
+            </div>
             <div>
-              <div style="font-weight:600"><a href="/clients/{{ c.id }}" style="color:inherit;text-decoration:none">{{ c.name }}</a></div>
-              <div class="muted">{{ c.kind == 'company' and 'Spółka' or 'JDG' }}</div>
+              <div class="font-bold text-base">{{ c.name }}</div>
+              <div class="text-xs muted">
+                {{ 'Spółka' if c.kind == 'company' else 'JDG' }}
+              </div>
             </div>
           </div>
         </td>
-        <td class="muted">{{ c.email or '—' }}</td>
-        <td><span class="pill neutral">{{ c.kind }}</span></td>
-        <td>
+        <td class="p-4 border-b border-[var(--border)] text-sm muted">
+          {{ c.email or 'brak emaila' }}
+        </td>
+        <td class="p-4 border-b border-[var(--border)]">
+          <span class="pill neutral">{{ c.kind }}</span>
+        </td>
+        <td class="p-4 border-b border-[var(--border)]">
           {% if c.complete %}
-            <span class="pill ok">✓ Komplet</span>
+          <span class="pill ok">✓ Komplet</span>
           {% else %}
+          <div class="flex flex-col items-start gap-2">
             <span class="pill warn">⚠ Brakuje {{ c.missing|length }}</span>
             {% if c.missing %}
-              <div class="muted" style="margin-top:4px">
-                {% for m in c.missing[:3] %}<span class="pill bad" style="font-size:11px;padding:1px 6px">{{ m.replace('_',' ') }}</span>{% endfor %}
-                {% if c.missing|length > 3 %}<span class="muted">+{{ c.missing|length - 3 }} więcej</span>{% endif %}
-              </div>
+            <div class="flex flex-wrap gap-1">
+              {% for m in c.missing[:3] %}
+              <span class="pill bad text-[10px] px-2 py-0.5"
+                >{{ m.replace('_',' ') }}</span
+              >
+              {% endfor %} {% if c.missing|length > 3 %}
+              <span class="text-xs muted ml-1"
+                >+{{ c.missing|length - 3 }}</span
+              >
+              {% endif %}
+            </div>
             {% endif %}
+          </div>
           {% endif %}
         </td>
-        <td style="text-align:right">
-          <a href="/clients/{{ c.id }}" class="btn btn-sm btn-ghost">Otwórz</a>
+        <td class="p-4 border-b border-[var(--border)] text-right">
+          <a href="/clients/{{ c.id }}" class="btn btn-sm">Szczegóły</a>
         </td>
       </tr>
       {% endfor %}
@@ -82,5 +163,4 @@
   </table>
 </div>
 
-{% endif %}
-{% endblock %}
+{% endif %} {% endblock %}

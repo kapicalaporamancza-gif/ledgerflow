@@ -1,116 +1,517 @@
 <!doctype html>
 <html lang="pl">
-<head>
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width,initial-scale=1">
-  <title>{% block title %}LedgerFlow{% endblock %}</title>
-  <script src="https://unpkg.com/htmx.org@2.0.3" defer></script>
-  <style>
-    :root {
-      --bg: #f8fafc; --fg: #0f172a; --muted: #64748b;
-      --card: #ffffff; --border: #e2e8f0;
-      --accent: #2563eb; --accent-hover: #1d4ed8;
-      --warn: #d97706; --warn-bg: #fef3c7; --warn-text: #92400e;
-      --ok: #059669; --ok-bg: #d1fae5; --ok-text: #065f46;
-      --bad: #dc2626; --bad-bg: #fee2e2; --bad-text: #991b1b;
-      --radius: 10px; --shadow: 0 1px 3px rgba(15,23,42,.08);
-    }
-    @media (prefers-color-scheme: dark) {
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <title>{% block title %}LedgerFlow{% endblock %}</title>
+
+    <!-- HTMX -->
+    <script src="https://unpkg.com/htmx.org@2.0.3" defer></script>
+
+    <!-- Dodaj to: Tailwind CSS + Konfiguracja Twoich kolorów -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+      tailwind.config = {
+        theme: {
+          extend: {
+            colors: {
+              accent: "#3b82f6",
+              ok: "#10b981",
+              warn: "#f59e0b",
+              bad: "#ef4444",
+              muted: "#64748b",
+            },
+          },
+        },
+      };
+    </script>
+
+    <style>
+      /* =========================================
+       1. ZMIENNE (Kolory, tryb jasny/ciemny) - Miękkie, bardziej przyjazne kolory
+       ========================================= */
       :root {
-        --bg: #0f172a; --fg: #f1f5f9; --muted: #94a3b8;
-        --card: #1e293b; --border: #334155;
-        --shadow: 0 1px 3px rgba(0,0,0,.3);
+        --bg: #f8fafc;
+        --fg: #1e293b;
+        --muted: #64748b;
+        --card: #ffffff;
+        --border: #e2e8f0;
+        --accent: #3b82f6;
+        --accent-hover: #2563eb;
+        --warn: #f59e0b;
+        --warn-bg: #fef3c7;
+        --warn-text: #92400e;
+        --ok: #10b981;
+        --ok-bg: #d1fae5;
+        --ok-text: #065f46;
+        --bad: #ef4444;
+        --bad-bg: #fee2e2;
+        --bad-text: #991b1b;
+        --radius: 12px;
+        --shadow: 0 2px 6px rgba(15, 23, 42, 0.05);
+        --shadow-hover: 0 4px 12px rgba(15, 23, 42, 0.08);
+        --transition: all 0.2s ease;
+        --font-sans:
+          "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
       }
-    }
-    * { box-sizing: border-box; }
-    body { margin: 0; font: 15px/1.5 system-ui, -apple-system, Segoe UI, sans-serif; color: var(--fg); background: var(--bg); min-height: 100vh; display: flex; flex-direction: column; }
-    header { padding: 14px 24px; background: var(--card); border-bottom: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px; position: sticky; top: 0; z-index: 10; }
-    header h1 { margin: 0; font-size: 18px; font-weight: 700; letter-spacing: 0.03em; color: var(--accent); }
-    header nav { display: flex; gap: 12px; align-items: center; }
-    header a, header button { text-decoration: none; color: var(--accent); font-weight: 500; font-size: 14px; background: none; border: 1px solid var(--accent); padding: 8px 14px; border-radius: 8px; cursor: pointer; transition: background .15s, color .15s; }
-    header a:hover, header button:hover { background: var(--accent); color: white; }
-    header a.primary, header button.primary { background: var(--accent); color: white; border-color: var(--accent); }
-    header a.primary:hover, header button.primary:hover { background: var(--accent-hover); border-color: var(--accent-hover); }
-    main { flex: 1; max-width: 1100px; width: 100%; margin: 0 auto; padding: 24px; }
-    .card { background: var(--card); border: 1px solid var(--border); border-radius: var(--radius); box-shadow: var(--shadow); padding: 20px; margin-bottom: 16px; }
-    .card-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 12px; flex-wrap: wrap; gap: 8px; }
-    .card-title { margin: 0; font-size: 16px; font-weight: 600; }
-    .pill { display: inline-flex; align-items: center; gap: 6px; padding: 4px 10px; border-radius: 999px; font-size: 12px; font-weight: 600; }
-    .pill.warn { background: var(--warn-bg); color: var(--warn-text); }
-    .pill.ok { background: var(--ok-bg); color: var(--ok-text); }
-    .pill.bad { background: var(--bad-bg); color: var(--bad-text); }
-    .pill.neutral { background: var(--border); color: var(--muted); }
-    ul.bare { list-style: none; padding: 0; margin: 0; }
-    ul.bare li { padding: 6px 0; border-bottom: 1px solid var(--border); display: flex; justify-content: space-between; gap: 12px; }
-    ul.bare li:last-child { border-bottom: none; }
-    .doc-row { display: flex; align-items: center; gap: 10px; }
-    .doc-icon { width: 36px; height: 36px; border-radius: 8px; display: flex; align-items: center; justify-content: center; font-size: 14px; background: var(--border); color: var(--muted); flex-shrink: 0; }
-    .doc-info { flex: 1; min-width: 0; }
-    .doc-name { font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-    .doc-meta { font-size: 12px; color: var(--muted); display: flex; gap: 12px; flex-wrap: wrap; }
-    .doc-conf { font-variant-numeric: tabular-nums; }
-    .conf-bar { height: 4px; border-radius: 2px; background: var(--border); overflow: hidden; margin-top: 4px; }
-    .conf-bar > span { display: block; height: 100%; background: linear-gradient(90deg, var(--bad), var(--warn), var(--ok)); }
-    .empty { color: var(--muted); font-style: italic; padding: 16px 0; text-align: center; }
-    table { width: 100%; border-collapse: collapse; }
-    th, td { padding: 10px 12px; text-align: left; border-bottom: 1px solid var(--border); }
-    th { color: var(--muted); font-weight: 600; font-size: 12px; text-transform: uppercase; letter-spacing: 0.05em; }
-    tr:hover td { background: rgba(37,99,235,.04); }
-    .client-name { display: flex; align-items: center; gap: 10px; }
-    .client-avatar { width: 36px; height: 36px; border-radius: 50%; background: linear-gradient(135deg, var(--accent), #7c3aed); color: white; display: flex; align-items: center; justify-content: center; font-weight: 600; font-size: 14px; flex-shrink: 0; }
-    .actions { display: flex; gap: 8px; }
-    .btn { display: inline-flex; align-items: center; gap: 6px; padding: 8px 14px; border-radius: 8px; font-weight: 500; font-size: 13px; cursor: pointer; border: 1px solid transparent; transition: all .15s; }
-    .btn-primary { background: var(--accent); color: white; }
-    .btn-primary:hover { background: var(--accent-hover); }
-    .btn-ghost { background: transparent; color: var(--accent); border-color: var(--accent); }
-    .btn-ghost:hover { background: var(--accent); color: white; }
-    .btn-danger { background: transparent; color: var(--bad); border-color: var(--bad); }
-    .btn-danger:hover { background: var(--bad); color: white; }
-    .btn-sm { padding: 6px 10px; font-size: 12px; }
-    .muted { color: var(--muted); font-size: 13px; }
-    .section { margin-bottom: 24px; }
-    .section-title { font-size: 13px; font-weight: 600; color: var(--muted); text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 10px; }
-    .grid { display: grid; gap: 16px; }
-    @media (min-width: 700px) { .grid-2 { grid-template-columns: 1fr 1fr; } .grid-3 { grid-template-columns: repeat(3, 1fr); } }
-    .stat { text-align: center; padding: 16px; background: var(--card); border: 1px solid var(--border); border-radius: var(--radius); }
-    .stat-value { font-size: 28px; font-weight: 700; line-height: 1.2; }
-    .stat-label { font-size: 12px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.05em; margin-top: 4px; }
-    pre { background: var(--bg); color: var(--fg); border: 1px solid var(--border); padding: 12px; border-radius: 8px; white-space: pre-wrap; font-size: 13px; line-height: 1.6; max-height: 300px; overflow: auto; }
-    input, select, textarea { width: 100%; padding: 10px 12px; border: 1px solid var(--border); border-radius: 8px; font: inherit; background: var(--card); color: var(--fg); transition: border .15s, box-shadow .15s; }
-    input:focus, select:focus, textarea:focus { outline: none; border-color: var(--accent); box-shadow: 0 0 0 3px rgba(37,99,235,.15); }
-    label { display: block; font-size: 13px; color: var(--muted); margin: 14px 0 6px; font-weight: 500; }
-    .form-row { display: grid; gap: 16px; }
-    @media (min-width: 600px) { .form-row-2 { grid-template-columns: 1fr 1fr; } }
-    .flash { padding: 12px 16px; border-radius: 8px; margin-bottom: 16px; font-size: 14px; display: flex; align-items: center; gap: 10px; }
-    .flash.success { background: var(--ok-bg); color: var(--ok-text); border: 1px solid var(--ok); }
-    .flash.error { background: var(--bad-bg); color: var(--bad-text); border: 1px solid var(--bad); }
-    .flash.info { background: rgba(37,99,235,.1); color: var(--accent); border: 1px solid var(--accent); }
-    .toolbar { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 16px; }
-    .toolbar form { margin: 0; }
-    .kbd { font-family: ui-monospace, monospace; background: var(--border); padding: 1px 6px; border-radius: 4px; font-size: 12px; }
-    .sidebar { display: none; }
-    @media (min-width: 900px) { .layout { display: grid; grid-template-columns: 280px 1fr; gap: 24px; } .sidebar { display: block; position: sticky; top: 100px; max-height: calc(100vh - 120px); overflow: auto; } }
-  </style>
-</head>
-<body>
-  <header>
-    <h1>LEDGERFLOW</h1>
-    <nav>
-      <a href="/dashboard" class="{% if request.url.path == '/dashboard' %}primary{% endif %}">Dashboard</a>
-      <a href="/clients/new">+ Klient</a>
-      <button class="primary" hx-post="/api/gmail/ingest-all"
-              hx-indicator="#ingest-spinner"
-              hx-on::after-request="this.disabled=false; setTimeout(()=>location.reload(), 800)">
-        <span class="htmx-indicator" id="ingest-spinner">⏳</span> Pobierz maile
-      </button>
-    </nav>
-  </header>
-  <main>
-    {% set flash = request.state.flash %}
-    {% if flash %}
-      <div class="flash {{ flash.category }}">{{ flash.message }}</div>
-    {% endif %}
-    {% block body %}{% endblock %}
-  </main>
-</body>
+      @media (prefers-color-scheme: dark) {
+        :root {
+          --bg: #0f172a;
+          --fg: #f1f5f9;
+          --muted: #94a3b8;
+          --card: #1e293b;
+          --border: #334155;
+          --shadow: 0 2px 6px rgba(0, 0, 0, 0.2);
+          --shadow-hover: 0 4px 12px rgba(0, 0, 0, 0.3);
+        }
+      }
+
+      /* =========================================
+       2. STYLE BAZOWE (Reset i główne tagi) - Lepiej wyważone typograficznie
+       ========================================= */
+      * {
+        box-sizing: border-box;
+      }
+      html {
+        font-size: 16px;
+      }
+      body {
+        margin: 0;
+        font-family: var(--font-sans);
+        font-size: 1rem;
+        line-height: 1.6;
+        color: var(--fg);
+        background: var(--bg);
+        min-height: 100vh;
+        display: flex;
+        flex-direction: column;
+      }
+      a {
+        color: inherit;
+        text-decoration: none;
+        transition: var(--transition);
+      }
+      a:hover {
+        color: var(--accent);
+      }
+      h1,
+      h2,
+      h3,
+      h4,
+      h5,
+      h6 {
+        margin: 0 0 0.5rem 0;
+        font-weight: 600;
+        line-height: 1.2;
+      }
+      p {
+        margin: 0 0 1rem 0;
+      }
+
+      /* =========================================
+       3. UKŁAD STRONY (Layout) - Bardziej przestronny i przyjazny
+       ========================================= */
+      .layout-header {
+        padding: 1.5rem 2rem;
+        background: var(--card);
+        border-bottom: 1px solid var(--border);
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        flex-wrap: wrap;
+        gap: 1rem;
+        position: sticky;
+        top: 0;
+        z-index: 10;
+        box-shadow: var(--shadow);
+      }
+      .layout-main {
+        flex: 1;
+        max-width: 1200px;
+        width: 100%;
+        margin: 0 auto;
+        padding: 2rem;
+      }
+      .sidebar {
+        display: none;
+      }
+      @media (min-width: 900px) {
+        .layout-grid {
+          display: grid;
+          grid-template-columns: 280px 1fr;
+          gap: 2rem;
+        }
+        .sidebar {
+          display: block;
+          position: sticky;
+          top: 100px;
+          max-height: calc(100vh - 140px);
+          overflow: auto;
+        }
+      }
+
+      /* =========================================
+       4. KOMPONENTY (Karty, Przyciski, Pigułki) - Bardziej nowoczesne i przyjazne
+       ========================================= */
+      .card {
+        background: var(--card);
+        border: 1px solid var(--border);
+        border-radius: var(--radius);
+        box-shadow: var(--shadow);
+        padding: 1.5rem;
+        margin-bottom: 1.5rem;
+        transition: var(--transition);
+      }
+      .card:hover {
+        box-shadow: var(--shadow-hover);
+        transform: translateY(-2px);
+      }
+
+      .btn {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        gap: 0.5rem;
+        padding: 0.75rem 1.5rem;
+        border-radius: var(--radius);
+        font-weight: 500;
+        font-size: 0.95rem;
+        cursor: pointer;
+        border: 2px solid transparent;
+        transition: var(--transition);
+        background: transparent;
+        color: var(--accent);
+        font-family: var(--font-sans);
+      }
+      .btn:hover {
+        background: var(--accent);
+        color: white;
+        transform: translateY(-2px);
+      }
+      .btn-primary {
+        background: var(--accent);
+        color: white;
+        border-color: var(--accent);
+      }
+      .btn-primary:hover {
+        background: var(--accent-hover);
+        border-color: var(--accent-hover);
+        transform: translateY(-2px);
+      }
+      .btn-danger {
+        color: var(--bad);
+        border-color: var(--bad);
+      }
+      .btn-danger:hover {
+        background: var(--bad);
+        color: white;
+        transform: translateY(-2px);
+      }
+      .btn-sm {
+        padding: 0.5rem 1rem;
+        font-size: 0.875rem;
+      }
+      .btn-outline {
+        border: 2px solid var(--border);
+        color: var(--fg);
+      }
+      .btn-outline:hover {
+        border-color: var(--accent);
+        color: var(--accent);
+        background: rgba(59, 130, 246, 0.05);
+      }
+
+      .pill {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.5rem;
+        padding: 0.5rem 1rem;
+        border-radius: 50px;
+        font-size: 0.875rem;
+        font-weight: 500;
+        transition: var(--transition);
+      }
+      .pill.warn {
+        background: var(--warn-bg);
+        color: var(--warn-text);
+        border: 1px solid var(--warn);
+      }
+      .pill.ok {
+        background: var(--ok-bg);
+        color: var(--ok-text);
+        border: 1px solid var(--ok);
+      }
+      .pill.bad {
+        background: var(--bad-bg);
+        color: var(--bad-text);
+        border: 1px solid var(--bad);
+      }
+      .pill.neutral {
+        background: var(--border);
+        color: var(--muted);
+      }
+
+      .flash {
+        padding: 1rem 1.5rem;
+        border-radius: var(--radius);
+        margin-bottom: 1.5rem;
+        font-size: 0.95rem;
+        display: flex;
+        align-items: center;
+        gap: 1rem;
+        border: none;
+        box-shadow: var(--shadow);
+      }
+      .flash.success {
+        background: var(--ok-bg);
+        color: var(--ok-text);
+        border-left: 4px solid var(--ok);
+      }
+      .flash.error {
+        background: var(--bad-bg);
+        color: var(--bad-text);
+        border-left: 4px solid var(--bad);
+      }
+      .flash.info {
+        background: rgba(59, 130, 246, 0.05);
+        color: var(--accent);
+        border-left: 4px solid var(--accent);
+      }
+
+      /* Formularze i Tabele - Bardziej intuicyjne i przyjazne */
+      input,
+      select,
+      textarea {
+        width: 100%;
+        padding: 0.75rem 1rem;
+        border: 2px solid var(--border);
+        border-radius: var(--radius);
+        font: inherit;
+        background: var(--card);
+        color: var(--fg);
+        transition: var(--transition);
+        font-family: var(--font-sans);
+      }
+      input:focus,
+      select:focus,
+      textarea:focus {
+        outline: none;
+        border-color: var(--accent);
+        box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.2);
+        background: var(--card);
+      }
+      input::placeholder,
+      textarea::placeholder {
+        color: var(--muted);
+        opacity: 0.7;
+      }
+      label {
+        display: block;
+        font-size: 0.95rem;
+        color: var(--fg);
+        margin: 1.25rem 0 0.5rem 0;
+        font-weight: 500;
+      }
+
+      table {
+        width: 100%;
+        border-collapse: separate;
+        border-spacing: 0;
+      }
+      th,
+      td {
+        padding: 1rem;
+        text-align: left;
+        border-bottom: 1px solid var(--border);
+      }
+      th {
+        background: rgba(59, 130, 246, 0.02);
+        color: var(--fg);
+        font-weight: 600;
+        font-size: 0.875rem;
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+      }
+      tr:hover td {
+        background: rgba(59, 130, 246, 0.02);
+      }
+
+      /* =========================================
+       5. KLASY NARZĘDZIOWE (Utilities) - Bardziej elastyczne
+       ========================================= */
+      .flex {
+        display: flex;
+      }
+      .flex-wrap {
+        flex-wrap: wrap;
+      }
+      .items-center {
+        align-items: center;
+      }
+      .items-start {
+        align-items: flex-start;
+      }
+      .justify-between {
+        justify-content: space-between;
+      }
+      .justify-center {
+        justify-content: center;
+      }
+
+      .gap-2 {
+        gap: 0.5rem;
+      }
+      .gap-4 {
+        gap: 1.5rem;
+      }
+      .mb-2 {
+        margin-bottom: 0.5rem;
+      }
+      .mb-4 {
+        margin-bottom: 1rem;
+      }
+      .mb-6 {
+        margin-bottom: 1.5rem;
+      }
+      .mt-4 {
+        margin-top: 1rem;
+      }
+
+      .w-full {
+        width: 100%;
+      }
+      .max-w-md {
+        max-width: 36rem;
+        margin-left: auto;
+        margin-right: auto;
+      }
+      .max-w-lg {
+        max-width: 48rem;
+        margin-left: auto;
+        margin-right: auto;
+      }
+      .max-w-xl {
+        max-width: 56rem;
+        margin-left: auto;
+        margin-right: auto;
+      }
+
+      .text-sm {
+        font-size: 0.875rem;
+      }
+      .text-base {
+        font-size: 1rem;
+      }
+      .text-lg {
+        font-size: 1.125rem;
+      }
+      .text-xl {
+        font-size: 1.25rem;
+      }
+      .text-2xl {
+        font-size: 1.5rem;
+      }
+      .text-3xl {
+        font-size: 1.875rem;
+      }
+      .font-bold {
+        font-weight: 600;
+      }
+      .font-semibold {
+        font-weight: 500;
+      }
+      .muted {
+        color: var(--muted);
+      }
+      .uppercase {
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+      }
+      .tracking-wide {
+        letter-spacing: 0.1em;
+      }
+      .hover\:scale-105:hover {
+        transform: scale(1.05);
+      }
+      .transition-all {
+        transition: var(--transition);
+      }
+    </style>
+  </head>
+  <body>
+    <header class="layout-header">
+      <div class="flex items-center gap-3">
+        <h1
+          class="text-2xl font-bold"
+          style="
+            background: linear-gradient(135deg, var(--accent), #8b5cf6);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+          "
+        >
+          LEDGERFLOW
+        </h1>
+      </div>
+      <nav class="flex items-center gap-3">
+        <a
+          href="/dashboard"
+          class="btn {% if request.url.path == '/dashboard' %}btn-primary{% endif %}"
+          >Dashboard</a
+        >
+        <a href="/clients/new" class="btn btn-outline">+ Klient</a>
+
+        <button
+          class="btn btn-primary"
+          hx-post="/api/gmail/ingest-all"
+          hx-swap="none"
+          hx-indicator="#ingest-spinner"
+          hx-on::after-request="this.disabled=false; setTimeout(()=>location.reload(), 800)"
+        >
+          <span class="htmx-indicator" id="ingest-spinner">⏳</span> Pobierz
+          maile
+        </button>
+      </nav>
+    </header>
+
+    <main class="layout-main">
+      <!-- Renderowanie flash messages (przystosowane pod listę lub pojedynczy dict) -->
+      {% if request.session.get("flash") %} {% for msg in
+      request.session["flash"] %}
+      <div class="flash {{ msg.type }}">{{ msg.message }}</div>
+      {% endfor %} {% set _ = request.session.pop("flash", None) %} {% elif
+      request.state.flash %}
+      <div class="flash {{ request.state.flash.category }}">
+        {{ request.state.flash.message }}
+      </div>
+      {% endif %} {% block body %}{% endblock %}
+    </main>
+
+    <!-- Subtelna animacja przy ładowaniu strony -->
+    <style>
+      body > * {
+        animation: fadeInUp 0.6s ease-out forwards;
+        opacity: 0;
+      }
+      body > *:nth-child(1) {
+        animation-delay: 0.1s;
+      }
+      body > *:nth-child(2) {
+        animation-delay: 0.2s;
+      }
+      body > *:nth-child(3) {
+        animation-delay: 0.3s;
+      }
+      @keyframes fadeInUp {
+        from {
+          opacity: 0;
+          transform: translateY(20px);
+        }
+        to {
+          opacity: 1;
+          transform: translateY(0);
+        }
+      }
+    </style>
+  </body>
 </html>

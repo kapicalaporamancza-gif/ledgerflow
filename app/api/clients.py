@@ -4,13 +4,15 @@ from __future__ import annotations
 import uuid
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, Form, HTTPException, Request
+from fastapi import APIRouter, Depends, Form, HTTPException, Request, status
 from fastapi.responses import HTMLResponse, RedirectResponse
+from requests import request, session
 
 from app.utils.flash import flash
 from fastapi.templating import Jinja2Templates
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.exc import IntegrityError
 
 from app.db import get_session
 from app.models.client import Client
@@ -51,6 +53,7 @@ async def list_clients(session: AsyncSession = Depends(get_session)):
 
 @router.post("", status_code=201)
 async def create_client(
+    request: Request,
     name: Annotated[str, Form()],
     email: Annotated[str | None, Form()] = None,
     tax_id: Annotated[str | None, Form()] = None,
@@ -60,8 +63,23 @@ async def create_client(
 ):
     client = Client(name=name, email=email, tax_id=tax_id, kind=kind, notes=notes)
     session.add(client)
-    await session.commit()
-    return {"id": str(client.id), "name": client.name}
+    try:
+        await session.commit()
+    except IntegrityError:
+        await session.rollback() # Cofnij zepsutą transakcję
+        if "flash" not in request.session:
+            request.session["flash"] = []
+        request.session["flash"].append({"type": "error", "message": "Klient z tym adresem e-mail już istnieje."})
+        
+        # Przekieruj z powrotem do formularza (kod 303 zamienia POST na GET)
+        return RedirectResponse(url="/clients/new", status_code=303)
+    
+    # W przypadku sukcesu również możesz dodać flash message i przekierować na listę
+    if "flash" not in request.session:
+        request.session["flash"] = []
+    request.session["flash"].append({"type": "success", "message": "Dodano nowego klienta."})
+    
+    return RedirectResponse(url="/dashboard", status_code=303)
 
 
 @router.get("/{client_id}/documents")
@@ -242,6 +260,17 @@ async def create_client_html(
     notes: Annotated[str | None, Form()] = None,
     session: AsyncSession = Depends(get_session),
 ):
+    # Check if client with this email already exists
+    if email:
+        existing = (
+            await session.execute(
+                select(Client).where(Client.email == email.strip())
+            )
+        ).scalar_one_or_none()
+        if existing:
+            flash(request, f"Klient o emailu „{email}” już istnieje.", "error")
+            return RedirectResponse(url="/dashboard", status_code=303)
+
     client = Client(name=name, email=email, tax_id=tax_id, kind=kind, notes=notes)
     session.add(client)
     await session.commit()

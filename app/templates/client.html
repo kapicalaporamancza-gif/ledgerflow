@@ -1,153 +1,232 @@
-{% extends "base.html" %}
-{% block title %}{{ client.name }} · LedgerFlow{% endblock %}
-{% block body %}
-<div style="display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:16px;margin-bottom:24px">
+{% extends "base.html" %} {% block title %}{{ client.name }} · LedgerFlow{%
+endblock %} {% block body %}
+
+<!-- Nagłówek klienta -->
+<div class="flex justify-between items-start flex-wrap gap-4 mb-6">
   <div>
-    <a href="/dashboard" class="muted" style="text-decoration:none;margin-bottom:8px;display:inline-block">← Dashboard</a>
-    <h1 style="margin:0;font-size:26px;text-transform:uppercase;letter-spacing:0.02em">{{ client.name }}</h1>
-    <div style="display:flex;gap:16px;flex-wrap:wrap;margin-top:8px;color:var(--muted);font-size:14px">
+    <a href="/dashboard" class="muted no-underline inline-block mb-2"
+      >← Dashboard</a
+    >
+    <h1 class="text-xl uppercase">{{ client.name }}</h1>
+    <div class="flex gap-4 flex-wrap mt-2 muted text-sm">
       <span>{{ client.email or 'brak emaila' }}</span>
       {% if client.tax_id %}<span>NIP: {{ client.tax_id }}</span>{% endif %}
-      <span class="pill neutral">{{ client.kind == 'company' and 'Spółka' or 'JDG' }}</span>
+      <span class="pill neutral"
+        >{{ 'Spółka' if client.kind == 'company' else 'JDG' }}</span
+      >
     </div>
   </div>
-  <div style="display:flex;gap:8px">
-    <form method="post" action="/api/clients/{{ client.id }}/delete" onsubmit="return confirm('Na pewno trwale usunąć klienta i wszystkie powiązane dane? (RODO)')">
-      <button class="btn btn-sm btn-danger" type="submit">🗑 Usuń klienta</button>
+  <div class="flex gap-2">
+    <form
+      method="post"
+      action="/api/clients/{{ client.id }}/delete"
+      onsubmit="
+        return confirm(
+          'Na pewno trwale usunąć klienta i wszystkie powiązane dane? (RODO)',
+        );
+      "
+    >
+      <button class="btn btn-sm btn-danger" type="submit">
+        🗑 Usuń klienta
+      </button>
     </form>
   </div>
 </div>
 
-<div class="layout">
+<div class="layout-grid">
+  <!-- Pasek boczny -->
   <aside class="sidebar">
     <div class="card">
-      <div class="section-title">Okres rozliczeniowy</div>
-      <div style="font-size:22px;font-weight:700">{{ period }}</div>
+      <div class="text-sm font-bold muted uppercase mb-2">
+        Okres rozliczeniowy
+      </div>
+      <div class="text-xl font-bold">{{ period }}</div>
     </div>
-    <div class="card" style="margin-top:16px">
-      <div class="section-title">Status ogólny</div>
+
+    <div class="card mt-4">
+      <div class="text-sm font-bold muted uppercase mb-2">Status ogólny</div>
       {% if missing %}
-        <span class="pill warn" style="width:100%;justify-content:center;margin-bottom:8px">⚠ Brakuje {{ missing|length }} dokumentu(ów)</span>
+      <span class="pill warn w-full justify-center mb-2"
+        >⚠ Brakuje {{ missing|length }} dokumentu(ów)</span
+      >
       {% else %}
-        <span class="pill ok" style="width:100%;justify-content:center;margin-bottom:8px">✓ Wszystkie dokumenty otrzymane</span>
+      <span class="pill ok w-full justify-center mb-2"
+        >✓ Wszystkie dokumenty otrzymane</span
+      >
       {% endif %}
-      <div class="muted" style="font-size:13px">
-        Otrzymano: <strong>{{ received|length }}</strong> / Wymagane: <strong>{{ (received|length) + (missing|length) }}</strong>
+      <div class="muted text-sm">
+        Otrzymano: <strong>{{ received|length }}</strong> / Wymagane:
+        <strong>{{ (received|length) + (missing|length) }}</strong>
       </div>
     </div>
-    <div class="card" style="margin-top:16px">
-      <div class="section-title">Szybkie akcje</div>
-      <a href="/clients/{{ client.id }}/edit" class="btn btn-ghost" style="width:100%;justify-content:center;margin-bottom:8px">Edytuj klienta</a>
-      <button class="btn btn-primary" style="width:100%;justify-content:center" hx-post="/api/gmail/ingest-all" hx-on::after-request="location.reload()">Odśwież z maili</button>
+
+    <div class="card mt-4">
+      <div class="text-sm font-bold muted uppercase mb-2">Szybkie akcje</div>
+      <a
+        href="/clients/{{ client.id }}/edit"
+        class="btn w-full justify-center mb-2"
+        >Edytuj klienta</a
+      >
+      <button
+        class="btn btn-primary w-full justify-center"
+        hx-post="/api/gmail/ingest-all"
+        hx-on::after-request="location.reload()"
+      >
+        Odśwież z maili
+      </button>
     </div>
   </aside>
 
+  <!-- Główna zawartość -->
   <div>
-    <section class="section">
-      <div class="section-title">Dokumenty w okresie {{ period }}</div>
+    <!-- Dokumenty -->
+    <section class="mb-6">
+      <div class="text-sm font-bold muted uppercase mb-2">
+        Dokumenty w okresie {{ period }}
+      </div>
       {% if documents %}
-        <div class="card" style="padding:0">
-          <ul class="bare">
-            {% for d in documents %}
-            <li>
-              <div class="doc-row">
-                <div class="doc-icon" title="{{ d.type }}">
-                  {% if d.type == 'invoice' %}📄
-                  {% elif d.type == 'bank_statement' %}🏦
-                  {% elif d.type == 'receipt' %}🧾
-                  {% elif d.type == 'lease' %}📋
-                  {% elif d.type == 'contract' %}🤝
-                  {% elif d.type == 'payroll' %}💼
-                  {% else %}📎{% endif %}
-                </div>
-                <div class="doc-info">
-                  <div class="doc-name">{{ d.filename or d.type }}</div>
-                  <div class="doc-meta">
-                    <span class="pill neutral" style="font-size:11px;padding:1px 6px">{{ d.type.replace('_',' ') }}</span>
-                    <span>OKRES: {{ d.period or '—' }}</span>
-                    <span class="doc-conf">Pewność: {{ "%.0f"|format(d.confidence * 100) }}%</span>
-                  </div>
-                  <div class="conf-bar"><span style="width:{{ d.confidence * 100 }}%"></span></div>
-                </div>
-                {% if d.id %}
-                <form method="post" action="/api/documents/{{ d.id }}" hx-delete="/api/documents/{{ d.id }}" hx-confirm="Usuń ten dokument trwale?" hx-target="closest li" hx-swap="outerHTML settle:300" style="margin:0">
-                  <button class="btn btn-sm btn-danger" type="submit">Usuń</button>
-                </form>
-                {% endif %}
+      <div class="card" style="padding: 0">
+        <!-- Wyjątek dla karty z listą, żeby przykleić brzegi -->
+        <ul class="bare" style="list-style: none; padding: 0; margin: 0">
+          {% for d in documents %}
+          <li
+            class="flex justify-between items-center gap-4 p-3"
+            style="border-bottom: 1px solid var(--border); padding: 12px"
+          >
+            <div class="flex items-center gap-2 w-full">
+              <div
+                class="doc-icon flex items-center justify-center bg-gray rounded"
+                style="
+                  width: 36px;
+                  height: 36px;
+                  background: var(--border);
+                  border-radius: 8px;
+                "
+                title="{{ d.type }}"
+              >
+                {% if d.type == 'invoice' %}📄 {% elif d.type ==
+                'bank_statement' %}🏦 {% elif d.type == 'receipt' %}🧾 {% elif
+                d.type == 'lease' %}📋 {% else %}📎{% endif %}
               </div>
-            </li>
-            {% endfor %}
-          </ul>
-        </div>
+              <div style="flex: 1; min-width: 0">
+                <div
+                  class="font-bold truncate"
+                  style="
+                    white-space: nowrap;
+                    overflow: hidden;
+                    text-overflow: ellipsis;
+                  "
+                >
+                  {{ d.filename or d.type }}
+                </div>
+                <div class="flex gap-4 flex-wrap muted text-sm mt-1">
+                  <span class="pill neutral" style="font-size: 11px"
+                    >{{ d.type.replace('_',' ') }}</span
+                  >
+                  <span>OKRES: {{ d.period or '—' }}</span>
+                  <span>Pewność: {{ "%.0f"|format(d.confidence * 100) }}%</span>
+                </div>
+              </div>
+              {% if d.id %}
+              <form
+                method="post"
+                action="/api/documents/{{ d.id }}"
+                hx-delete="/api/documents/{{ d.id }}"
+                hx-confirm="Usuń ten dokument trwale?"
+                hx-target="closest li"
+                hx-swap="outerHTML settle:300"
+                class="m-0"
+              >
+                <button class="btn btn-sm btn-danger" type="submit">
+                  Usuń
+                </button>
+              </form>
+              {% endif %}
+            </div>
+          </li>
+          {% endfor %}
+        </ul>
+      </div>
       {% else %}
-        <div class="card empty">Brak dokumentów dla tego okresu. Kliknij <strong>Pobierz maile</strong> lub dodaj klienta z mailem, by zaimportować załączniki.</div>
+      <div class="card text-center muted" style="padding: 24px">
+        Brak dokumentów dla tego okresu. Kliknij
+        <strong>Pobierz maile</strong> lub dodaj klienta z mailem, by
+        zaimportować załączniki.
+      </div>
       {% endif %}
     </section>
 
-    <section class="section">
-      <div class="section-title">Checklista brakujących dokumentów</div>
+    <!-- Checklista -->
+    <section class="mb-6">
+      <div class="text-sm font-bold muted uppercase mb-2">
+        Checklista brakujących dokumentów
+      </div>
       <div class="card">
         {% if missing %}
-          <ul class="bare">
-            {% for m in missing %}
-            <li>
-              <div class="doc-row">
-                <div class="doc-icon" style="background:var(--bad-bg);color:var(--bad)">✗</div>
-                <div class="doc-info">
-                  <div class="doc-name">{{ m.replace('_',' ') }}</div>
-                  <div class="muted">Wymagany dla {{ client.kind == 'company' and 'spółki' or 'JDG' }}</div>
-                </div>
+        <ul style="list-style: none; padding: 0; margin: 0">
+          {% for m in missing %}
+          <li class="flex items-center gap-2 mb-2">
+            <div
+              class="flex items-center justify-center"
+              style="
+                width: 24px;
+                height: 24px;
+                background: var(--bad-bg);
+                color: var(--bad);
+                border-radius: 4px;
+              "
+            >
+              ✗
+            </div>
+            <div>
+              <div class="font-bold">{{ m.replace('_',' ') }}</div>
+              <div class="muted text-sm">
+                Wymagany dla {{ 'spółki' if client.kind == 'company' else 'JDG'
+                }}
               </div>
-            </li>
-            {% endfor %}
-          </ul>
+            </div>
+          </li>
+          {% endfor %}
+        </ul>
         {% else %}
-          <div class="empty" style="color:var(--ok)">✓ Wszystkie wymagane dokumenty są już w systemie.</div>
+        <div class="text-center" style="color: var(--ok)">
+          ✓ Wszystkie wymagane dokumenty są już w systemie.
+        </div>
         {% endif %}
       </div>
     </section>
 
-    {% if last_email %}
-    <section class="section">
-      <div class="section-title">Ostatnia wiadomość od klienta</div>
-      <div class="card">
-        <div style="display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:12px;margin-bottom:12px">
-          <div>
-            <div style="font-weight:600">{{ last_email.subject or '(bez tematu)' }}</div>
-            <div class="muted" style="margin-top:4px">{{ last_email.sender }} · {{ last_email.received_at.strftime('%d.%m.%Y %H:%M') if last_email.received_at else '—' }} · <span class="pill {{ last_email.status == 'done' and 'ok' or 'warn' }}">{{ last_email.status }}</span></div>
-          </div>
-        </div>
-        {% if last_email.ai_summary %}
-          <div class="muted" style="padding:12px;background:var(--bg);border-radius:8px;border:1px solid var(--border);margin-bottom:12px">{{ last_email.ai_summary }}</div>
-        {% endif %}
-        {% if last_email_docs %}
-          <div style="font-weight:500;margin-bottom:8px">Załączniki w tej wiadomości:</div>
-          <ul class="bare">
-            {% for d in last_email_docs %}
-            <li>
-              <div class="doc-row">
-                <div class="doc-icon">{% if d.type == 'invoice' %}📄{% elif d.type == 'bank_statement' %}🏦{% elif d.type == 'receipt' %}🧾{% elif d.type == 'lease' %}📋{% else %}📎{% endif %}</div>
-                <div class="doc-info">
-                  <div class="doc-name">{{ d.filename }}</div>
-                  <div class="doc-meta"><span class="pill neutral" style="font-size:11px">{{ d.type }}</span><span>{{ "%.0f"|format(d.confidence * 100) }}% pewności</span></div>
-                </div>
-              </div>
-            </li>
-            {% endfor %}
-          </ul>
-        {% endif %}
+    <!-- Szkic odpowiedzi -->
+    <section class="mb-6">
+      <div class="text-sm font-bold muted uppercase mb-2">
+        Szkic odpowiedzi do klienta
       </div>
-    </section>
-    {% endif %}
-
-    <section class="section">
-      <div class="section-title">Szkic odpowiedzi do klienta</div>
       <div class="card">
-        <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:12px;margin-bottom:12px">
-          <span class="muted">Mail <strong>nie</strong> zostanie wysłany automatycznie — skopiuj, sprawdź i wyślij ręcznie.</span>
-          <button class="btn btn-ghost btn-sm" onclick="navigator.clipboard.writeText(`{{ draft_reply|e }}`).then(()=>{this.textContent='Skopiowano!';setTimeout(()=>this.textContent='📋 Kopiuj',1500)})">📋 Kopiuj</button>
+        <div class="flex justify-between items-center flex-wrap gap-2 mb-4">
+          <span class="muted text-sm"
+            >Mail <strong>nie</strong> zostanie wysłany automatycznie — skopiuj,
+            sprawdź i wyślij ręcznie.</span
+          >
+          <button
+            class="btn btn-sm"
+            onclick="navigator.clipboard.writeText(`{{ draft_reply|e }}`).then(()=>{this.textContent='Skopiowano!';setTimeout(()=>this.textContent='📋 Kopiuj',1500)})"
+          >
+            📋 Kopiuj
+          </button>
         </div>
-        <pre style="margin:0;font-family:inherit">{{ draft_reply }}</pre>
+        <pre
+          style="
+            margin: 0;
+            background: var(--bg);
+            padding: 16px;
+            border-radius: 8px;
+            border: 1px solid var(--border);
+            font-family: inherit;
+            white-space: pre-wrap;
+          "
+        >
+{{ draft_reply }}</pre
+        >
       </div>
     </section>
   </div>

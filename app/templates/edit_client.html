@@ -1,47 +1,103 @@
-{% extends "base.html" %}
-{% block title %}Edycja: {{ client.name }} · LedgerFlow{% endblock %}
-{% block body %}
-<div style="max-width:560px;margin:0 auto">
-  <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:24px">
-    <div>
-      <a href="/clients/{{ client.id }}" class="muted" style="text-decoration:none;margin-bottom:8px;display:inline-block">← Powrót do klienta</a>
-      <h1 style="margin:0;font-size:26px">Edycja klienta</h1>
-      <p class="muted">{{ client.name }}</p>
-    </div>
-  </div>
+{% extends "base.html" %} {% block title %}Edycja: {{ client.name }} ·
+	LedgerFlow{% endblock %} {% block body %}
+	<div class="max-w-xl">
+	  <div class="flex justify-between items-center mb-8">
+	    <div class="flex flex-col">
+	      <a href="/dashboard" class="btn btn-outline mb-4 flex items-center gap-3 hover:bg-accent/5 transition-colors">
+	        <svg class="w-5 h-5 text-muted" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+	          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"></path>
+	        </svg>
+	        <span>← Powrót do dashboardu</span>
+	      </a>
+	      <h1 class="text-3xl font-bold text-center bg-gradient-to-r from-accent to-indigo-600 bg-clip-text text-transparent mb-2">
+	        Edycja: {{ client.name }}
+	      </h1>
+	      <p class="text-lg text-muted max-w-xl">
+	        Edytuj dane klienta {{ client.name }}
+	      </p>
+	    </div>
+	  </div>
 
-  <form class="card" method="post" action="/clients/{{ client.id }}/edit">
-    <div class="form-row form-row-2">
-      <div>
-        <label>Nazwa firmy *</label>
-        <input name="name" required value="{{ client.name }}" autocomplete="organization">
-      </div>
-      <div>
-        <label>Email</label>
-        <input name="email" type="email" value="{{ client.email or '' }}" autocomplete="email">
-      </div>
-    </div>
-    <div class="form-row form-row-2">
-      <div>
-        <label>NIP</label>
-        <input name="tax_id" pattern="\d{10}" maxlength="10" value="{{ client.tax_id or '' }}" autocomplete="off">
-      </div>
-      <div>
-        <label>Typ działalności</label>
-        <select name="kind">
-          <option value="company" {% if client.kind == 'company' %}selected{% endif %}>Spółka</option>
-          <option value="sole_prop" {% if client.kind == 'sole_prop' %}selected{% endif %}>JDG</option>
-        </select>
-      </div>
-    </div>
-    <div>
-      <label>Notatki</label>
-      <textarea name="notes" rows="3">{{ client.notes or '' }}</textarea>
-    </div>
-    <div style="display:flex;gap:12px;margin-top:24px;flex-wrap:wrap">
-      <button class="btn btn-primary" type="submit">Zapisz zmiany</button>
-      <a href="/clients/{{ client.id }}" class="btn btn-ghost" style="align-self:center">Anuluj</a>
-    </div>
-  </form>
-</div>
-{% endblock %}
+	  <form class="card" method="post" action="/clients/{{ client.id }}/edit">
+	    <div class="space-y-6">
+	      <div class="grid gap-4 sm:grid-cols-2">
+	        <div>
+	          <label class="text-sm font-semibold mb-2 block" for="name">Nazwa firmy *</label>
+	          <input
+	            type="text"
+	            id="name"
+	            name="name"
+	            required
+	            value="{{ client.name }}"
+	            autocomplete="organization"
+	            class="w-full px-4 py-3 border border-muted/20 rounded-xl focus:border-accent focus:ring-2 focus:ring-accent/20 transition-all"
+	          />
+	        </div>
+	        <div>
+	          <label class="text-sm font-semibold mb-2 block" for="email">Email</label>
+	          <input
+	            type="email"
+	            id="email"
+	            name="email"
+	            value="{{ client.email or '' }}"
+	            autocomplete="email"
+	            class="w-full px-4 py-3 border border-muted/20 rounded-xl focus:border-accent focus:ring-2 focus:ring-accent/20 transition-all"
+	          />
+	        </div>
+	      </div>
+
+	      <div class="grid gap-4 sm:grid-cols-2">
+	        <div>
+	          <label class="text-sm font-semibold mb-2 block" for="tax_id">NIP</label>
+	          <input
+	            type="text"
+	            id="tax_id"
+	            name="tax_id"
+	            pattern="\d{10}"
+	            maxlength="10"
+	            value="{{ client.tax_id or '' }}"
+	            autocomplete="off"
+	            class="w-full px-4 py-3 border border-muted/20 rounded-xl focus:border-accent focus:ring-2 focus:ring-accent/20 transition-all"
+	          />
+	        </div>
+	        <div>
+	          <label class="text-sm font-semibold mb-2 block" for="kind">Typ działalności</label>
+	          <select
+	            id="kind"
+	            name="kind"
+	            class="w-full px-4 py-3 border border-muted/20 rounded-xl focus:border-accent focus:ring-2 focus:ring-accent/20 transition-all"
+	          >
+	            <option value="company"
+	              {% if client.kind == "company" %}selected{% endif %}
+	            >
+	              Spółka
+	            </option>
+	            <option value="sole_prop"
+	              {% if client.kind == "sole_prop" %}selected{% endif %}
+	            >
+	              JDG
+	            </option>
+	          </select>
+	        </div>
+	      </div>
+
+	      <div>
+	        <label class="text-sm font-semibold mb-2 block" for="notes">Notatki</label>
+	        <textarea
+	          id="notes"
+	          name="notes"
+	          rows="4"
+	          class="w-full px-4 py-3 border border-muted/20 rounded-xl focus:border-accent focus:ring-2 focus:ring-accent/20 transition-all"
+	        >{{ client.notes or '' }}</textarea>
+	      </div>
+	    </div>
+
+	    <div class="flex justify-center pt-6">
+	      <button class="btn btn-primary px-8 py-3" type="submit">
+	        Zapisz zmiany
+	      </button>
+	      <a href="/clients/{{ client.id }}" class="btn btn-outline mx-4 px-8 py-3">Anuluj</a>
+	    </div>
+	  </form>
+	</div>
+	{% endblock %}
