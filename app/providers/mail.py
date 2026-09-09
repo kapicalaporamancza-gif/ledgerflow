@@ -6,6 +6,9 @@ import asyncio
 import uuid
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
+from email.utils import parseaddr
+from googleapiclient.discovery import build
+import base64
 
 from app.config import settings
 
@@ -15,6 +18,7 @@ class IncomingAttachment:
     filename: str
     content: bytes
     mime_type: str = "application/octet-stream"
+    attachment_id: str | None = None
 
 
 @dataclass
@@ -110,7 +114,6 @@ class GmailProvider(MailProvider):
             token_uri="https://oauth2.googleapis.com/token",
             scopes=[
                 "https://www.googleapis.com/auth/gmail.readonly",
-                "https://www.googleapis.com/auth/gmail.modify",
             ],
         )
         self._service = None  # lazy build
@@ -127,6 +130,20 @@ class GmailProvider(MailProvider):
             svc = self._svc()
             msg = svc.users().messages().get(userId="me", id=message_id, format="full").execute()
             return _parse_gmail(msg)
+        return await asyncio.to_thread(_do)
+    
+    async def download_attachment(self, message_id: str, attachment_id: str) -> bytes:
+        def _do():
+            svc = self._svc()
+            att = (
+                svc.users()
+                .messages()
+                .attachments()
+                .get(userId="me", messageId=message_id, id=attachment_id)
+                .execute()
+            )
+            return base64.urlsafe_b64decode(att["data"])
+
         return await asyncio.to_thread(_do)
 
     async def list_recent(self, max_results: int = 20) -> list[IncomingMessage]:
@@ -147,43 +164,55 @@ class GmailProvider(MailProvider):
 
 
 def _parse_gmail(msg: dict) -> IncomingMessage:
-    """Minimal Gmail payload -> IncomingMessage. Good enough for MVP."""
-    headers = {h["name"].lower(): h["value"] for h in msg.get("payload", {}).get("headers", [])}
-    sender = headers.get("from", "")
+    """Parse Gmail message into IncomingMessage."""
+    import base64
+
+    headers = {
+        h["name"].lower(): h["value"]
+        for h in msg.get("payload", {}).get("headers", [])
+    }
+
+    raw_from = headers.get("from", "")
+    _, sender = parseaddr(raw_from)
+
     subject = headers.get("subject", "")
     external_id = msg.get("id", "") or str(uuid.uuid4())
 
     body = ""
     attachments: list[IncomingAttachment] = []
 
-    def walk(part: dict) -> None:
+    def walk(part: dict):
         nonlocal body
+
         mime = part.get("mimeType", "")
-        data = part.get("body", {}).get("data")
-        att_id = part.get("body", {}).get("attachmentId")
         filename = part.get("filename") or ""
-        if mime == "text/plain" and data and not att_id:
-            import base64
+        part_body = part.get("body", {})
 
-            body += base64.urlsafe_b64decode(data + "==").decode("utf-8", errors="ignore")
-        if att_id and filename:
-            import base64
+        # Treść maila
+        if mime == "text/plain" and "data" in part_body:
+            body += base64.urlsafe_b64decode(
+                part_body["data"] + "=="
+            ).decode("utf-8", errors="ignore")
 
+        # Załącznik
+        if filename and "attachmentId" in part_body:
             attachments.append(
                 IncomingAttachment(
                     filename=filename,
-                    content=b"",  # fetched lazily by service layer
-                    mime_type=mime or "application/octet-stream",
+                    content=b"",
+                    mime_type=mime,
+                    attachment_id=part_body["attachmentId"],
                 )
             )
-        for sub in part.get("parts", []) or []:
-            walk(sub)
+
+        for child in part.get("parts", []) or []:
+            walk(child)
 
     walk(msg.get("payload", {}))
 
     return IncomingMessage(
         external_id=external_id,
-        sender=sender,
+        sender=sender.lower(),
         subject=subject,
         body=body,
         received_at=headers.get("date", ""),

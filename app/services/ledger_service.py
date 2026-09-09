@@ -6,7 +6,7 @@ from datetime import datetime
 from difflib import SequenceMatcher
 from typing import Iterable
 
-from sqlalchemy import select
+from sqlalchemy import select, func
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.config import settings
@@ -37,7 +37,7 @@ class LedgerService:
         if sender:
             row = (
                 await self.session.execute(
-                    select(Client).where(Client.email == sender.strip())
+                    select(Client).where(func.lower(Client.email) == sender.lower().strip())
                 )
             ).scalar_one_or_none()
             if row:

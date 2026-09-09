@@ -11,6 +11,7 @@ import logging
 
 from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException
 from pydantic import BaseModel
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.db import get_session
@@ -19,7 +20,7 @@ from app.models.email import Email
 from app.providers.mail import get_mail_provider
 from app.services.ai_service import AIService
 from app.services.gmail_service import GmailService
-from app.services.ledger_service import LedgerService, normalize_period
+from app.services.ledger_service import LedgerService, normalize_period, period_now
 from app.services.pdf_service import PDFService
 
 log = logging.getLogger(__name__)
@@ -34,6 +35,23 @@ class WebhookPayload(BaseModel):
 
 
 # ---------- background processing -----------------------------------------
+
+async def _repair_existing_email(session: AsyncSession, email: Email, period: str) -> None:
+    """Backfill the period on an existing email and its documents."""
+    if email.period != period:
+        email.period = period
+
+    documents = (
+        await session.execute(
+            select(Document).where(
+                Document.email_id == email.id,
+                Document.period.is_(None),
+            )
+        )
+    ).scalars().all()
+    for document in documents:
+        document.period = period
+
 
 async def process_message(message_id: str, external_id: str | None = None) -> None:
     """Full ingestion pipeline for one message."""
@@ -89,7 +107,12 @@ async def process_message(message_id: str, external_id: str | None = None) -> No
                     classified_name=classification.client_name,
                     text=text,
                 )
-                period = normalize_period(classification.period) or email.period
+                period = (
+                    normalize_period(classification.period)
+                    or normalize_period(email.period)
+                    or normalize_period(email.received_at.isoformat())
+                    or period_now()
+                )
 
                 doc = Document(
                     email_id=email.id,
@@ -161,6 +184,9 @@ async def webhook(
         )
     ).scalar_one_or_none()
     if existing:
+        period = normalize_period(existing.received_at.isoformat()) or period_now()
+        await _repair_existing_email(session, existing, period)
+        await session.commit()
         return {"status": "duplicate", "email_id": str(existing.id)}
 
     email = Email(
@@ -193,6 +219,9 @@ async def ingest_all(
             )
         ).scalar_one_or_none()
         if existing:
+            # Popraw stare rekordy z okresem None (np. po wcześniejszej wersji aplikacji).
+            period = normalize_period(existing.received_at.isoformat()) or period_now()
+            await _repair_existing_email(session, existing, period)
             continue
         email = Email(
             sender=msg.sender,

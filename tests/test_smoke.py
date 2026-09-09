@@ -8,6 +8,7 @@ from pathlib import Path
 import pytest
 import pytest_asyncio
 from httpx import ASGITransport, AsyncClient
+from sqlalchemy import select
 
 # Force a clean SQLite for tests.
 os.environ["DATABASE_URL"] = "sqlite+aiosqlite:///./test_ledgerflow.db"
@@ -100,6 +101,72 @@ async def test_ingest_all_assigns_clients():
         # From our mock: bank_statement, lease, invoice, plus raport_kasowy
         # (mapped to bank_statement by heuristic) -> overlap.
         assert "bank_statement" in types or "lease" in types or "invoice" in types
+
+
+@pytest.mark.asyncio
+async def test_ingest_all_repairs_existing_email_period():
+    """Existing emails and documents get a period when AI could not infer one."""
+    from datetime import datetime, timezone
+
+    from app.db import SessionLocal
+    from app.models.document import Document
+    from app.models.email import Email
+
+    async with AsyncClient(
+        transport=ASGITransport(app=app), base_url="http://test"
+    ) as c:
+        r = await c.post(
+            "/api/clients",
+            data={
+                "name": "ABC Transport",
+                "email": "biuro@abctransport.pl",
+                "kind": "company",
+            },
+        )
+        assert r.status_code == 201
+        client_id = r.json()["id"]
+
+        async with SessionLocal() as session:
+            for index, sender in enumerate(
+                ["biuro@abctransport.pl", "kontakt@janex.com.pl", "biuro@kowalski.pl"]
+            ):
+                email = Email(
+                    sender=sender,
+                    subject="faktura",
+                    body=None,
+                    received_at=datetime(2026, 9, 9, tzinfo=timezone.utc),
+                    status="done",
+                    external_id=f"mock-{index}",
+                    period=None,
+                )
+                session.add(email)
+                await session.flush()
+                if index == 0:
+                    session.add(
+                        Document(
+                            email_id=email.id,
+                            client_id=client_id,
+                            type="invoice",
+                            period=None,
+                            confidence=0.95,
+                            filename="Faktura.pdf",
+                            storage_path="Faktura.pdf",
+                        )
+                    )
+            await session.commit()
+
+        r = await c.post("/api/gmail/ingest-all")
+        assert r.status_code == 200
+        assert r.json()["accepted"] == []
+        assert r.json()["skipped"] == 3
+
+        async with SessionLocal() as session:
+            email = (await session.execute(select(Email).where(Email.external_id == "mock-0"))).scalar_one()
+            doc = (
+                await session.execute(select(Document).where(Document.email_id == email.id))
+            ).scalars().one()
+            assert email.period == "2026-09"
+            assert doc.period == "2026-09"
 
 
 @pytest.mark.asyncio

@@ -5,7 +5,9 @@ import uuid
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, Form, HTTPException, Request, status
-from fastapi.responses import HTMLResponse, RedirectResponse
+from pathlib import Path
+
+from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse
 from requests import request, session
 
 from app.utils.flash import flash
@@ -24,7 +26,7 @@ from app.services.reply_service import ReplyService
 
 router = APIRouter(prefix="/api/clients", tags=["clients"])
 pages = APIRouter(tags=["dashboard"])
-templates = Jinja2Templates(directory="app/templates")
+templates = Jinja2Templates(directory=str(Path(__file__).resolve().parents[1] / "templates"))
 
 
 # ---------- API -----------------------------------------------------------
@@ -78,8 +80,8 @@ async def create_client(
     if "flash" not in request.session:
         request.session["flash"] = []
     request.session["flash"].append({"type": "success", "message": "Dodano nowego klienta."})
-    
-    return RedirectResponse(url="/dashboard", status_code=303)
+
+    return JSONResponse(status_code=201, content={"id": str(client.id), "status": "created"})
 
 
 @router.get("/{client_id}/documents")
