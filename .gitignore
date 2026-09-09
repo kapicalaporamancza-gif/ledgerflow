@@ -19,6 +19,7 @@ htmlcov/
 venv/
 env/
 ENV/
+.env
 
 # Application databases and generated uploads
 *.db
