@@ -99,3 +99,4 @@ async def test_attachment_download_uses_provider_interface(monkeypatch, tmp_path
 
 def test_settings_use_project_relative_paths():
     assert settings.upload_dir.is_absolute()
+    assert settings.gmail_lookback_days == 30

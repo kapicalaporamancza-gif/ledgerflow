@@ -40,6 +40,7 @@ class Settings(BaseSettings):
     google_client_id: str = ""
     google_client_secret: str = ""
     google_refresh_token: str = ""
+    gmail_lookback_days: int = Field(default=30, ge=1, le=365)
     mail_poll_interval_seconds: int = 60
     mail_webhook_secret: str = ""
 

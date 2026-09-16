@@ -296,7 +296,7 @@ class GmailProvider(MailProvider):
                 .list(
                     userId="me",
                     maxResults=max_results,
-                    q="has:attachment newer_than:7d",
+                    q=f"has:attachment newer_than:{settings.gmail_lookback_days}d",
                 )
             )
             out: list[IncomingMessage] = []

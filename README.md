@@ -68,7 +68,9 @@ konfiguracji, żeby przełączyć.
 `MAIL_PROVIDER=gmail` wymaga trzech wartości w `.env`. Refresh token musi
 zostać wygenerowany dla tego samego projektu i klienta OAuth, z zakresem
 `https://www.googleapis.com/auth/gmail.readonly`. Samo włączenie Gmail API w
-Google Cloud nie wystarcza.
+Google Cloud nie wystarcza. Przycisk **Pobierz maile** domyślnie sprawdza
+wiadomości z załącznikami z ostatnich 30 dni; okno można zmienić przez
+`GMAIL_LOOKBACK_DAYS` w `.env`.
 
 Jeśli Google zwraca `invalid_grant`, `revoked` albo `expired`, token trzeba
 wygenerować ponownie. Błędy `429`, `500`, `502`, `503`, `504`, timeouty i
