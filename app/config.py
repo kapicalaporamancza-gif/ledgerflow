@@ -9,9 +9,12 @@ from pydantic import Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
+_PROJECT_ROOT = Path(__file__).resolve().parents[1]
+
+
 class Settings(BaseSettings):
     model_config = SettingsConfigDict(
-        env_file=".env",
+        env_file=_PROJECT_ROOT / ".env",
         env_file_encoding="utf-8",
         case_sensitive=False,
         extra="ignore",
@@ -25,7 +28,7 @@ class Settings(BaseSettings):
     database_url: str = "sqlite+aiosqlite:///./ledgerflow.db"
 
     # Storage
-    upload_dir: Path = Path("./data/uploads")
+    upload_dir: Path = _PROJECT_ROOT / "data/uploads"
 
     # AI
     ai_provider: Literal["mock", "openai"] = "mock"
@@ -57,9 +60,21 @@ class Settings(BaseSettings):
         }
 
 
+def _project_path(value: str | Path) -> Path:
+    path = Path(value)
+    return path if path.is_absolute() else _PROJECT_ROOT / path
+
+
 @lru_cache
 def get_settings() -> Settings:
     s = Settings()
+    s.upload_dir = _project_path(s.upload_dir).resolve()
+    sqlite_prefix = "sqlite+aiosqlite:///"
+    if s.database_url.startswith(sqlite_prefix):
+        database_path = s.database_url.removeprefix(sqlite_prefix)
+        if database_path not in {":memory:", ""}:
+            resolved = _project_path(database_path).resolve()
+            s.database_url = f"{sqlite_prefix}{resolved.as_posix()}"
     s.upload_dir.mkdir(parents=True, exist_ok=True)
     return s
 

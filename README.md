@@ -21,14 +21,17 @@ przypisuje klienta → wykrywa brakujące dokumenty → tworzy szkic odpowiedzi.
 python --version
 
 # 2) Venv + zależności
-uv venv .venv --python 3.12
-uv pip install -r requirements.txt
+python -m venv .venv
+source .venv/bin/activate       # macOS / Linux
+# .venv\Scripts\Activate.ps1    # Windows PowerShell
+pip install -r requirements.txt
 
-# 3) (opcjonalnie) skopiuj .env
-cp .env.example .env
+# 3) Skopiuj wzór konfiguracji
+cp .env.example .env            # macOS / Linux
+# skopiuj .env.example do .env   # Windows
 
-# 4) Migracja + serwer (DB tworzy się automatycznie)
-.venv/Scripts/python.exe -m uvicorn app.main:app --reload
+# 4) Serwer (baza tworzy się automatycznie)
+python -m uvicorn app.main:app --reload
 ```
 
 Otwórz: <http://localhost:8000/dashboard>
@@ -59,6 +62,23 @@ GOOGLE_REFRESH_TOKEN=...
 Abstrakcje w `app/providers/` (ai.py / mail.py / ocr.py) mają ten
 sam interfejs dla mocka i prawdziwej implementacji — wystarczy zmiana
 konfiguracji, żeby przełączyć.
+
+### Gmail OAuth
+
+`MAIL_PROVIDER=gmail` wymaga trzech wartości w `.env`. Refresh token musi
+zostać wygenerowany dla tego samego projektu i klienta OAuth, z zakresem
+`https://www.googleapis.com/auth/gmail.readonly`. Samo włączenie Gmail API w
+Google Cloud nie wystarcza.
+
+Jeśli Google zwraca `invalid_grant`, `revoked` albo `expired`, token trzeba
+wygenerować ponownie. Błędy `429`, `500`, `502`, `503`, `504`, timeouty i
+problemy połączenia są automatycznie ponawiane z backoffem. Aplikacja używa
+tej samej warstwy wywołań do listy wiadomości, pobierania wiadomości i
+załączników, więc błędy OAuth są spójnie diagnozowane.
+
+Na komputerze z macOS upewnij się, że proces startuje z katalogu projektu
+albo że `.env` znajduje się obok `app/`; ścieżka konfiguracji jest liczona
+względem pliku aplikacji, a nie bieżącego katalogu terminala.
 
 ## Struktura
 
@@ -108,7 +128,7 @@ ledgerflow/
 .venv/Scripts/python.exe -m pytest tests/ -v
 ```
 
-5 testów smoke (FastAPI + httpx ASGITransport) — bez zewnętrznych zależności.
+11 testów smoke (FastAPI + httpx ASGITransport) — bez zewnętrznych zależności.
 
 ## RODO
 

@@ -466,7 +466,8 @@
           hx-post="/api/gmail/ingest-all"
           hx-swap="none"
           hx-indicator="#ingest-spinner"
-          hx-on::after-request="this.disabled=false; setTimeout(()=>location.reload(), 800)"
+          hx-on::response-error="this.disabled=false; alert('Nie udało się pobrać maili. Sprawdź konfigurację OAuth Google lub spróbuj za chwilę.')"
+          hx-on::after-request="if (event.detail.successful) { this.disabled=false; setTimeout(()=>location.reload(), 800); }"
         >
           <span class="htmx-indicator" id="ingest-spinner">⏳</span> Pobierz
           maile

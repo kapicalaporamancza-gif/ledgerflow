@@ -17,7 +17,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.db import get_session
 from app.models.document import Document
 from app.models.email import Email
-from app.providers.mail import get_mail_provider
+from app.providers.mail import GmailAuthError, GmailProviderError, get_mail_provider
 from app.services.ai_service import AIService
 from app.services.gmail_service import GmailService
 from app.services.ledger_service import LedgerService, normalize_period, period_now
@@ -35,6 +35,18 @@ class WebhookPayload(BaseModel):
 
 
 # ---------- background processing -----------------------------------------
+
+
+def _gmail_error_response(exc: GmailProviderError) -> HTTPException:
+    """Turn a provider failure into a safe, actionable HTTP response."""
+    status_code = 502
+    if isinstance(exc, GmailAuthError):
+        # OAuth problems are client configuration errors, but returning 400
+        # would make the UI look as if the request itself was malformed.
+        status_code = 502
+    log.error("Gmail request failed: %s", exc)
+    return HTTPException(status_code=status_code, detail=str(exc))
+
 
 async def _repair_existing_email(session: AsyncSession, email: Email, period: str) -> None:
     """Backfill the period on an existing email and its documents."""
@@ -154,6 +166,17 @@ async def process_message(message_id: str, external_id: str | None = None) -> No
             email.ai_summary = summary.summary
 
             await session.commit()
+        except GmailProviderError as exc:
+            # Keep the failed message visible in the database instead of
+            # leaving it permanently stuck in "processing".
+            if "email" in locals() and email.id:
+                email.status = "error"
+                try:
+                    await session.commit()
+                except Exception:
+                    await session.rollback()
+            log.error("Gmail processing failed for %s: %s", message_id, exc)
+            raise
         except Exception:
             await session.rollback()
             log.exception("process_message failed: %s", message_id)
@@ -174,6 +197,8 @@ async def webhook(
         msg = await get_mail_provider().fetch_message(payload.message_id)
     except KeyError:
         raise HTTPException(status_code=404, detail="message_id not found")
+    except GmailProviderError as exc:
+        raise _gmail_error_response(exc) from exc
 
     # Quick insert so we always have a row even if AI fails.
     from sqlalchemy import select
@@ -208,7 +233,10 @@ async def ingest_all(
     session: AsyncSession = Depends(get_session),
 ):
     """Pull all messages from the mail provider. Demo endpoint."""
-    msgs = await get_mail_provider().list_recent()
+    try:
+        msgs = await get_mail_provider().list_recent()
+    except GmailProviderError as exc:
+        raise _gmail_error_response(exc) from exc
     accepted: list[str] = []
     from sqlalchemy import select
 

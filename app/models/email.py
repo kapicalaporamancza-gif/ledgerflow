@@ -24,7 +24,7 @@ class Email(Base):
     received_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), nullable=False, server_default=func.now()
     )
-    # new | processing | manual_review | done
+    # new | processing | manual_review | done | error
     status: Mapped[str] = mapped_column(String(32), nullable=False, default="new")
     ai_summary: Mapped[str | None] = mapped_column(Text, nullable=True)
     # Period this email is associated with (e.g. "2026-08"). Best-effort.
